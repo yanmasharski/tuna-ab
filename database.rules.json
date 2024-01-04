@@ -1,0 +1,17 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+      "$groupid":
+                {
+      "data":
+        {
+            
+                "$groupid":
+                {
+                    ".indexOn": "ecpm"
+                }
+        }
+                }
+  }
+}
