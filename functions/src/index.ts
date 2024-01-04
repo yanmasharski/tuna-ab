@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require("uuid");
 import * as https from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
-import { UserProfile } from "./UserProfile";
+import { UserState } from "./UserState";
 admin.initializeApp();
 
 export const auth = https.onRequest(async (request, response) => {
@@ -23,30 +23,37 @@ export const auth = https.onRequest(async (request, response) => {
 
   if (!docId) {
     const newDocId = uuidv4();
-    let userProfile: UserProfile = new UserProfile(null, null, null, now);
+    let userState: UserState = new UserState(null, null, null, now);
+    FindSegments(userState);
+    FindTest(userState);
 
     refUserDict.set(newDocId);
 
-    const refUserProfile = db.ref(`profiles/${newDocId}`);
-    await refUserProfile.set(userProfile);
+    const refUserState = db.ref(`states/${newDocId}`);
+    await refUserState.set(userState);
 
-    response.status(200).send(JSON.stringify(userProfile));
+    response.status(200).send(JSON.stringify(userState));
     return;
   }
 
-  const refUserProfile = db.ref(`profiles/${docId}`);
-  const snapshotUserProfile = await refUserProfile.once("value");
-  const ups: UserProfile = snapshotUserProfile.val() as UserProfile;
+  const refUserState = db.ref(`states/${docId}`);
+  const snapshotUserState = await refUserState.once("value");
+  const ups: UserState = snapshotUserState.val() as UserState;
   if (ups) {
-    const userProfile: UserProfile = new UserProfile(ups);
-    userProfile.SetLastAuthTime(now);
-    response.status(200).send(JSON.stringify(userProfile));
-    refUserProfile.set(userProfile);
+    const userState: UserState = new UserState(ups);
+    if (userState.GetAuthExpired()) {
+      FindSegments(userState);
+      FindTest(userState);
+    }
+
+    userState.SetLastAuthTime(now);
+    response.status(200).send(JSON.stringify(userState));
+    refUserState.set(userState);
   } else {
-    response.status(404).send("User profile not found");
+    response.status(404).send("User state not found");
   }
 });
 
-function FindSegments(userProfile: UserProfile) {}
+function FindSegments(userState: UserState) {}
 
-function FindTest(userProfile: UserProfile) {}
+function FindTest(userState: UserState) {}

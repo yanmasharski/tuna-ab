@@ -1,7 +1,7 @@
-export class UserProfile {
+export class UserState {
   t: string | null;
   s: string[] | null;
-  a: number | null;
+  a: number;
 
   constructor(
     obj: any | null = null,
@@ -16,7 +16,7 @@ export class UserProfile {
     } else {
       this.t = activeTest;
       this.s = activeSegments;
-      this.a = lastAuthTime;
+      this.a = lastAuthTime as number;
     }
 
     if (this.t === undefined) {
@@ -49,5 +49,11 @@ export class UserProfile {
 
   SetLastAuthTime(value: number) {
     this.a = value;
+  }
+
+  GetAuthExpired(): boolean {
+    const now = Date.now();
+    const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
+    return now - this.a > oneHour;
   }
 }
