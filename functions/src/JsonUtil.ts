@@ -1,4 +1,8 @@
 export function CreateJSONString(obj: any): string {
+  return JSON.stringify(CreateSerializableObject(obj));
+}
+
+export function CreateSerializableObject(obj: any): any {
   const filteredObject = { ...obj }; // Create a shallow copy of the object
 
   // Exclude private fields
@@ -8,5 +12,5 @@ export function CreateJSONString(obj: any): string {
     }
   }
 
-  return JSON.stringify(filteredObject);
+  return filteredObject;
 }

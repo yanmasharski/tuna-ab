@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import { UserProfile } from "./UserProfile";
-import { CreateJSONString } from "./JsonUtil";
+import { CreateJSONString, CreateSerializableObject } from "./JsonUtil";
 
 export class UserState {
   public t: string | null;
@@ -86,5 +86,9 @@ export class UserState {
 
   public ToJSONString(): string {
     return CreateJSONString(this);
+  }
+
+  public ToSerializable(): any {
+    return CreateSerializableObject(this);
   }
 }

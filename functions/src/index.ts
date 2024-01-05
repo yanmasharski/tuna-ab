@@ -33,7 +33,7 @@ export const auth = https.onRequest(async (request, response) => {
     refUserDict.set(newDocId);
 
     const refUserState = db.ref(`states/${newDocId}`);
-    await refUserState.set(userState);
+    await refUserState.set(userState.ToSerializable());
 
     response.status(200).send(userState.ToJSONString());
     return;
@@ -52,7 +52,7 @@ export const auth = https.onRequest(async (request, response) => {
 
     userState.SetLastAuthTime(now);
     response.status(200).send(userState.ToJSONString());
-    refUserState.set(userState);
+    refUserState.set(userState.ToSerializable());
   } else {
     response.status(404).send("User state not found");
   }
