@@ -1,7 +1,13 @@
+import * as admin from "firebase-admin";
+import { UserProfile } from "./UserProfile";
+import { CreateJSONString } from "./JsonUtil";
+
 export class UserState {
-  t: string | null;
-  s: string[] | null;
-  a: number;
+  public t: string | null;
+  public s: string[] | null;
+  public a: number;
+
+  private _userProfile: UserProfile | null = null;
 
   constructor(
     obj: any | null = null,
@@ -55,5 +61,30 @@ export class UserState {
     const now = Date.now();
     const oneHour = 60 * 60 * 1000; // 1 hour in milliseconds
     return now - this.a > oneHour;
+  }
+
+  async GetUserProfile(
+    docId: string,
+    db: admin.database.Database
+  ): Promise<UserProfile> {
+    if (this._userProfile !== null) {
+      return Promise.resolve(this._userProfile);
+    }
+
+    const refUserProfile = db.ref(`profiles/${docId}`);
+    const snapshotUserProfile = await refUserProfile.once("value");
+    this._userProfile = snapshotUserProfile.val() as UserProfile;
+    if (this._userProfile === null) {
+      this._userProfile = new UserProfile(null);
+      await refUserProfile.set(this._userProfile);
+    } else {
+      this._userProfile = new UserProfile(this._userProfile);
+    }
+
+    return Promise.resolve(this._userProfile);
+  }
+
+  public ToJSONString(): string {
+    return CreateJSONString(this);
   }
 }

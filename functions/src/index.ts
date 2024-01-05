@@ -5,6 +5,8 @@ import * as https from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import { UserState } from "./UserState";
+import { UserProfile } from "./UserProfile";
+import { Database } from "firebase-admin/database";
 admin.initializeApp();
 
 export const auth = https.onRequest(async (request, response) => {
@@ -15,7 +17,7 @@ export const auth = https.onRequest(async (request, response) => {
     return;
   }
 
-  const db = admin.database();
+  const db: Database = admin.database();
   const refUserDict = db.ref(`users/${id}`);
   const snapshotUserDict = await refUserDict.once("value");
   const docId: string | null = snapshotUserDict.val();
@@ -24,36 +26,38 @@ export const auth = https.onRequest(async (request, response) => {
   if (!docId) {
     const newDocId = uuidv4();
     let userState: UserState = new UserState(null, null, null, now);
-    FindSegments(userState);
-    FindTest(userState);
+    let userProfile: UserProfile = await userState.GetUserProfile(newDocId, db);
+    FindSegments(userProfile);
+    FindTest(userProfile);
 
     refUserDict.set(newDocId);
 
     const refUserState = db.ref(`states/${newDocId}`);
     await refUserState.set(userState);
 
-    response.status(200).send(JSON.stringify(userState));
+    response.status(200).send(userState.ToJSONString());
     return;
   }
 
   const refUserState = db.ref(`states/${docId}`);
   const snapshotUserState = await refUserState.once("value");
-  const ups: UserState = snapshotUserState.val() as UserState;
-  if (ups) {
-    const userState: UserState = new UserState(ups);
+  let userState: UserState = snapshotUserState.val() as UserState;
+  if (userState) {
+    userState = new UserState(userState);
     if (userState.GetAuthExpired()) {
-      FindSegments(userState);
-      FindTest(userState);
+      let userProfile: UserProfile = await userState.GetUserProfile(docId, db);
+      FindSegments(userProfile);
+      FindTest(userProfile);
     }
 
     userState.SetLastAuthTime(now);
-    response.status(200).send(JSON.stringify(userState));
+    response.status(200).send(userState.ToJSONString());
     refUserState.set(userState);
   } else {
     response.status(404).send("User state not found");
   }
 });
 
-function FindSegments(userState: UserState) {}
+function FindSegments(userProfile: UserProfile) {}
 
-function FindTest(userState: UserState) {}
+function FindTest(userProfile: UserProfile) {}
