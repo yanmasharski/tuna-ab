@@ -7,6 +7,8 @@ import * as admin from "firebase-admin";
 import { UserState } from "./UserState";
 import { UserProfile } from "./UserProfile";
 import { Database } from "firebase-admin/database";
+import { Segment } from "./Segment";
+
 admin.initializeApp();
 
 export const auth = https.onRequest(async (request, response) => {
@@ -25,10 +27,16 @@ export const auth = https.onRequest(async (request, response) => {
 
   if (!docId) {
     const newDocId = uuidv4();
-    let userState: UserState = new UserState(null, null, null, now);
-    let userProfile: UserProfile = await userState.GetUserProfile(newDocId, db);
-    FindSegments(userProfile);
-    FindTest(userProfile);
+    let userState: UserState = new UserState(
+      db,
+      newDocId,
+      null,
+      null,
+      null,
+      now
+    );
+    await FindSegments(userState);
+    await FindTest(userState);
 
     refUserDict.set(newDocId);
 
@@ -43,12 +51,11 @@ export const auth = https.onRequest(async (request, response) => {
   const snapshotUserState = await refUserState.once("value");
   let userState: UserState = snapshotUserState.val() as UserState;
   if (userState) {
-    userState = new UserState(userState);
-    if (userState.GetAuthExpired()) {
-      let userProfile: UserProfile = await userState.GetUserProfile(docId, db);
-      FindSegments(userProfile);
-      FindTest(userProfile);
-    }
+    userState = new UserState(db, docId, userState);
+    // if (userState.GetAuthExpired()) {
+    await FindSegments(userState);
+    await FindTest(userState);
+    // }
 
     userState.SetLastAuthTime(now);
     response.status(200).send(userState.ToJSONString());
@@ -58,6 +65,45 @@ export const auth = https.onRequest(async (request, response) => {
   }
 });
 
-function FindSegments(userProfile: UserProfile) {}
+let segments: Segment[];
 
-function FindTest(userProfile: UserProfile) {}
+async function LoadSegments() {
+  if (segments) {
+    return;
+  }
+
+  logger.info("Load segments");
+  segments = [];
+
+  const db: Database = admin.database();
+  const refSegmentsConfig = db.ref("segments");
+  const snapshotSegmentsConfig = await refSegmentsConfig.once("value");
+  const segmentsConfig = snapshotSegmentsConfig.val() as Segment[];
+  if (!segmentsConfig) {
+    console.error(
+      "Error reading segments configuration from Realtime Database"
+    );
+    return;
+  }
+  segmentsConfig.forEach((s) => {
+    segments.push(new Segment(s));
+  });
+}
+
+async function FindSegments(userState: UserState) {
+  await LoadSegments();
+  const userProfile: UserProfile = await userState.GetUserProfile();
+  let newSegments: string[] = [];
+  segments.forEach((segment) => {
+    if (segment.Fits(userProfile)) {
+      newSegments.push(segment.id);
+    }
+  });
+
+  userState.SetActiveSegments(newSegments);
+}
+
+async function FindTest(userState: UserState) {
+  const userProfile: UserProfile = await userState.GetUserProfile();
+  logger.info("FindTest " + userProfile);
+}

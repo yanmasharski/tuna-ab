@@ -1,4 +1,5 @@
 import { Event } from "./Event";
+import { CreateJSONString, CreateSerializableObject } from "./JsonUtil";
 
 export class UserProfile {
   public events: Event[];
@@ -32,5 +33,13 @@ export class UserProfile {
     if (events === undefined || events === null) {
       events = [];
     }
+  }
+
+  public ToJSONString(): string {
+    return CreateJSONString(this);
+  }
+
+  public ToSerializable(): any {
+    return CreateSerializableObject(this);
   }
 }

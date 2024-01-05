@@ -1,0 +1,33 @@
+[
+  {
+    "id": "segment1",
+    "triggers": [
+      {
+        "eventType": 1,
+        "event": "Event1",
+        "revenue": 5000,
+        "progress": 50,
+        "geoLocation": "New York"
+      }
+    ]
+  },
+  {
+    "id": "segment2",
+    "triggers": [
+      {
+        "eventType": 2,
+        "event": "Event2",
+        "revenue": 10000,
+        "progress": 75,
+        "geoLocation": "Los Angeles"
+      },
+      {
+        "eventType": 3,
+        "event": "Event3",
+        "revenue": 15000,
+        "progress": 100,
+        "geoLocation": "Chicago"
+      }
+    ]
+  }
+]

@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { UserProfile } from "./UserProfile";
 import { CreateJSONString, CreateSerializableObject } from "./JsonUtil";
+import * as logger from "firebase-functions/logger";
 
 export class UserState {
   public t: string | null;
@@ -8,13 +9,19 @@ export class UserState {
   public a: number;
 
   private _userProfile: UserProfile | null = null;
+  private _docId: string;
+  private _db: admin.database.Database;
 
   constructor(
+    db: admin.database.Database,
+    docId: string,
     obj: any | null = null,
     activeTest: string | null = null,
     activeSegments: string[] | null = null,
     lastAuthTime: number | null = null
   ) {
+    this._docId = docId;
+    this._db = db;
     if (obj) {
       this.t = obj.t;
       this.s = obj.s;
@@ -63,22 +70,27 @@ export class UserState {
     return now - this.a > oneHour;
   }
 
-  async GetUserProfile(
-    docId: string,
-    db: admin.database.Database
-  ): Promise<UserProfile> {
+  async GetUserProfile(): Promise<UserProfile> {
     if (this._userProfile !== null) {
       return Promise.resolve(this._userProfile);
     }
 
-    const refUserProfile = db.ref(`profiles/${docId}`);
+    let refUserProfile = this._db.ref("pr").child(this._docId);
     const snapshotUserProfile = await refUserProfile.once("value");
-    this._userProfile = snapshotUserProfile.val() as UserProfile;
-    if (this._userProfile === null) {
+    let userProfileString = snapshotUserProfile.val();
+    logger.info("this._userProfile" + userProfileString);
+    if (!userProfileString) {
       this._userProfile = new UserProfile(null);
-      await refUserProfile.set(this._userProfile);
+      refUserProfile = this._db.ref("pr").child(this._docId);
+      await refUserProfile.set(this._userProfile.ToJSONString()).catch((e) => {
+        if (e !== null) {
+          logger.error(e as Error);
+        }
+      });
+      logger.info("refUserProfile.set:" + this._docId);
     } else {
-      this._userProfile = new UserProfile(this._userProfile);
+      this._userProfile = new UserProfile(JSON.parse(userProfileString));
+      logger.info("UserProfile.parse:" + this._userProfile.geo);
     }
 
     return Promise.resolve(this._userProfile);
