@@ -3,16 +3,16 @@ import { UserProfile } from "./UserProfile";
 
 export class Segment {
   public id: string;
-  public triggers: Trigger[];
+  public triggers: Trigger[] = [];
   constructor(
-    obj: any | null,
+    obj: Segment | null,
     id: string | null = null,
     triggers: Trigger[] | null = null
   ) {
     if (obj) {
       this.id = obj.id;
-      this.triggers = [];
-      (obj.triggers as Trigger[]).forEach((t) => {
+      let tempTriggers = obj.triggers as Trigger[];
+      tempTriggers.forEach((t) => {
         this.triggers.push(new Trigger(t));
       });
     } else {

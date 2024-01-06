@@ -7,7 +7,7 @@ export class Trigger {
   public progress: number;
   public geoLocation: string;
   constructor(
-    obj: any | null,
+    obj: Trigger | null,
     eventType: EventType | null = null,
     event: string | null = null,
     revenue: number | null = null,

@@ -1,13 +1,19 @@
 /* eslint @typescript-eslint/no-var-requires: "off" */
 const { v4: uuidv4 } = require("uuid");
 
+const { defineString } = require("firebase-functions/params");
+defineString("SECRET");
+defineString("SEGMENTS");
+
 import * as https from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
+import { Database } from "firebase-admin/database";
 import * as admin from "firebase-admin";
 import { UserState } from "./UserState";
 import { UserProfile } from "./UserProfile";
-import { Database } from "firebase-admin/database";
 import { Segment } from "./Segment";
+
+let segments: Segment[];
 
 admin.initializeApp();
 
@@ -63,47 +69,105 @@ export const auth = https.onRequest(async (request, response) => {
   } else {
     response.status(404).send("User state not found");
   }
+
+  async function FindSegments(userState: UserState) {
+    await LoadSegments();
+    const userProfile: UserProfile = await userState.GetUserProfile();
+    let newSegments: string[] = [];
+    segments.forEach((segment) => {
+      if (segment.Fits(userProfile)) {
+        newSegments.push(segment.id);
+      }
+    });
+
+    userState.SetActiveSegments(newSegments);
+  }
+
+  async function FindTest(userState: UserState) {
+    const userProfile: UserProfile = await userState.GetUserProfile();
+    logger.info("FindTest " + userProfile);
+  }
+
+  async function LoadSegments() {
+    if (segments) {
+      logger.info("Cached segments: " + segments.length);
+      logger.info("ENV segments: " + process.env.SEGMENTS);
+      return;
+    }
+
+    if (process.env.SEGMENTS) {
+      logger.info("Fast load segments: " + process.env.SEGMENTS);
+      const segmentsConfig: Segment[] = JSON.parse(
+        process.env.SEGMENTS
+      ) as Segment[];
+      segments = [];
+      segmentsConfig.forEach((s) => {
+        segments.push(new Segment(s));
+      });
+      return;
+    }
+
+    logger.info("Read segments");
+    segments = [];
+
+    const db: Database = admin.database();
+    const refSegmentsConfig = db.ref("segments");
+    const snapshotSegmentsConfig = await refSegmentsConfig.once("value");
+    const segmentsConfigString: string = snapshotSegmentsConfig.val() as string;
+    if (!segmentsConfigString) {
+      console.error(
+        "Error reading segments configuration from Realtime Database"
+      );
+      return;
+    }
+    process.env.SEGMENTS = segmentsConfigString;
+    const segmentsConfig: Segment[] = JSON.parse(
+      segmentsConfigString
+    ) as Segment[];
+    segments = [];
+    segmentsConfig.forEach((s) => {
+      segments.push(new Segment(s));
+    });
+  }
 });
 
-let segments: Segment[];
+export const setSegments = https.onRequest(async (request, response) => {
+  const secretKey = request.body.secret;
+  const json = request.body.json;
 
-async function LoadSegments() {
-  if (segments) {
+  if (!secretKey || !json) {
+    response.status(400).send("Invalid request");
     return;
   }
 
-  logger.info("Load segments");
-  segments = [];
+  if (secretKey !== process.env.SECRET) {
+    response.status(403).send("Unauthorized");
+    return;
+  }
+
+  let segmentsConfig: Segment[] = [];
+  try {
+    segmentsConfig = JSON.parse(json) as Segment[];
+    segments = [];
+    segmentsConfig.forEach((s) => {
+      segments.push(new Segment(s));
+    });
+  } catch (error) {
+    logger.error((error as Error).message);
+    logger.info(json);
+    response.status(400).send("Invalid JSON format");
+    return;
+  }
 
   const db: Database = admin.database();
   const refSegmentsConfig = db.ref("segments");
-  const snapshotSegmentsConfig = await refSegmentsConfig.once("value");
-  const segmentsConfig = snapshotSegmentsConfig.val() as Segment[];
-  if (!segmentsConfig) {
+  await refSegmentsConfig.set(json).catch((error) => {
     console.error(
-      "Error reading segments configuration from Realtime Database"
+      "Error writing segments configuration to Realtime Database",
+      error
     );
-    return;
-  }
-  segmentsConfig.forEach((s) => {
-    segments.push(new Segment(s));
   });
-}
+  process.env.SEGMENTS = json;
 
-async function FindSegments(userState: UserState) {
-  await LoadSegments();
-  const userProfile: UserProfile = await userState.GetUserProfile();
-  let newSegments: string[] = [];
-  segments.forEach((segment) => {
-    if (segment.Fits(userProfile)) {
-      newSegments.push(segment.id);
-    }
-  });
-
-  userState.SetActiveSegments(newSegments);
-}
-
-async function FindTest(userState: UserState) {
-  const userProfile: UserProfile = await userState.GetUserProfile();
-  logger.info("FindTest " + userProfile);
-}
+  response.status(200).send("Done");
+});

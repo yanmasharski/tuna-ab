@@ -66,3 +66,4 @@ node_modules/
 .env
 .firebaserc
 *.code-workspace
+.env.local

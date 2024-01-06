@@ -80,7 +80,7 @@ export class UserState {
     let userProfileString = snapshotUserProfile.val();
     logger.info("this._userProfile" + userProfileString);
     if (!userProfileString) {
-      this._userProfile = new UserProfile(null);
+      this._userProfile = new UserProfile(null, [], "unknown", 0, 0, 0);
       refUserProfile = this._db.ref("pr").child(this._docId);
       await refUserProfile.set(this._userProfile.ToJSONString()).catch((e) => {
         if (e !== null) {
