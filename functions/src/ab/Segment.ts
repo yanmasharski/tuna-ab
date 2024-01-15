@@ -1,9 +1,19 @@
-import { Trigger } from "./Trigger";
-import { UserProfile } from "./UserProfile";
+import { Trigger } from "./triggers/Trigger";
+import { UserProfile } from "../UserProfile";
 
 export class Segment {
   public id: string;
   public triggers: Trigger[] = [];
+  /**
+   * Included segments ids
+   */
+  public inc: string[] = [];
+
+  /**
+   * Excluded segments ids
+   */
+  public exc: string[] = [];
+
   constructor(
     obj: Segment | null,
     id: string | null = null,

@@ -11,7 +11,7 @@ import { Database } from "firebase-admin/database";
 import * as admin from "firebase-admin";
 import { UserState } from "./UserState";
 import { UserProfile } from "./UserProfile";
-import { Segment } from "./Segment";
+import { Segment } from "./ab/Segment";
 
 let segments: Segment[];
 
